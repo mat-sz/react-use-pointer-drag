@@ -77,12 +77,12 @@ export function usePointerDrag<T>(
   });
 
   const startDragging = useCallback((state: T) => setDragState(state), [
-    setDragState,
+    setDragState
   ]);
 
   return {
     startDragging,
-    dragState,
+    dragState
   };
 }
 
@@ -118,13 +118,13 @@ export function usePointerDragSimple(
       onTouchStart: (e: React.TouchEvent) => {
         e.preventDefault();
         startDragging(true);
-      },
+      }
     }),
     [startDragging]
   );
 
   return {
     events,
-    moving: dragState || false,
+    moving: dragState || false
   };
 }
