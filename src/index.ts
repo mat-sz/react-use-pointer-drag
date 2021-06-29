@@ -21,15 +21,32 @@ export interface IPointerDragState<T> {
   dragState?: T;
 }
 
+export interface IPointerDragOptions {
+  /**
+   * If set to true, stopPropagation will be called.
+   * Default: true.
+   */
+  stopPropagation?: boolean;
+
+  /**
+   * If set to true, preventDefault will be called.
+   * Default: true.
+   */
+  preventDefault?: boolean;
+}
+
 /**
  * Common mouse/touch hold and move actions.
  * @param updatePosition Function to be called with clientX and clientY when mouse/touch is down and dragged.
  * @returns IPointerDragState
  */
 export function usePointerDrag<T>(
-  updatePosition: (x: number, y: number, dragState: T) => void
+  updatePosition: (x: number, y: number, dragState: T) => void,
+  options: IPointerDragOptions = {}
 ): IPointerDragState<T> {
   const [dragState, setDragState] = useState<T | undefined>(undefined);
+
+  const { stopPropagation = true, preventDefault = true } = options;
 
   useEffect(() => {
     if (typeof dragState === 'undefined') {
@@ -37,15 +54,15 @@ export function usePointerDrag<T>(
     }
 
     const handleMouseMove = (e: MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
+      if (preventDefault) e.preventDefault();
+      if (stopPropagation) e.stopPropagation();
 
       updatePosition(e.clientX, e.clientY, dragState);
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
+      if (preventDefault) e.preventDefault();
+      if (stopPropagation) e.stopPropagation();
 
       const touch = e.touches[0];
       if (!touch) {
@@ -105,22 +122,32 @@ export interface IPointerDragSimpleState {
  * @returns IPointerDragState
  */
 export function usePointerDragSimple(
-  updatePosition: (x: number, y: number) => void
+  updatePosition: (x: number, y: number) => void,
+  options: IPointerDragOptions = {}
 ): IPointerDragSimpleState {
-  const { startDragging, dragState } = usePointerDrag<boolean>(updatePosition);
+  const { startDragging, dragState } = usePointerDrag<boolean>(
+    updatePosition,
+    options
+  );
+
+  const { stopPropagation = true, preventDefault = true } = options;
 
   const events = useMemo(
     () => ({
       onMouseDown: (e: React.MouseEvent) => {
-        e.preventDefault();
+        if (preventDefault) e.preventDefault();
+        if (stopPropagation) e.stopPropagation();
+
         startDragging(true);
       },
       onTouchStart: (e: React.TouchEvent) => {
-        e.preventDefault();
+        if (preventDefault) e.preventDefault();
+        if (stopPropagation) e.stopPropagation();
+
         startDragging(true);
       }
     }),
-    [startDragging]
+    [startDragging, preventDefault, stopPropagation]
   );
 
   return {
