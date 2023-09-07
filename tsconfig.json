@@ -7,7 +7,9 @@
     "outDir": "./lib",
     "lib": ["ES2020", "DOM"],
     "downlevelIteration": true,
-    "strict": true
+    "strict": true,
+    "esModuleInterop": true,
+    "jsx": "react-jsx"
   },
   "include": ["src"],
   "exclude": ["node_modules", "**/__tests__/*"]

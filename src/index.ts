@@ -141,12 +141,12 @@ export interface IPointerDragOptions<T> {
 }
 
 export function usePointerDrag<T>(
-  options: IPointerDragOptions<T>
+  options: IPointerDragOptions<T>,
 ): unknown extends T
   ? IPointerDragReturnWithoutState
   : IPointerDragReturnWithState<T>;
 export function usePointerDrag<T>(
-  options: IPointerDragOptions<T>
+  options: IPointerDragOptions<T>,
 ): IPointerDragReturnWithoutState | IPointerDragReturnWithState<T> {
   const [dragState, setDragState] = useState<T | undefined>(undefined);
   const [isDragging, setIsDragging] = useState(false);
@@ -182,11 +182,11 @@ export function usePointerDrag<T>(
       onStart,
       onMove,
       onEnd,
-      dragPredicate
+      dragPredicate,
     } = optionsRef.current;
 
     const getData = (
-      e: PointerEvent | React.PointerEvent
+      e: PointerEvent | React.PointerEvent,
     ): IPointerDragData<T> => {
       const { x: startX, y: startY, startedAt, initialEvent } = infoRef.current;
 
@@ -204,7 +204,7 @@ export function usePointerDrag<T>(
         startY,
         startedAt,
         initialEvent,
-        distance: Math.sqrt(Math.pow(deltaX, 2) + Math.pow(deltaY, 2))
+        distance: Math.sqrt(Math.pow(deltaX, 2) + Math.pow(deltaY, 2)),
       };
     };
 
@@ -259,17 +259,15 @@ export function usePointerDrag<T>(
       setIsDragging(true);
       infoRef.current.dragging = true;
     },
-    [setDragState, setIsStarted, setIsDragging]
+    [setDragState, setIsStarted, setIsDragging],
   );
 
   const dragProps = useCallback(
     (state?: T) => {
       return {
         onPointerDown: (e: React.PointerEvent) => {
-          const {
-            stopPropagation = true,
-            preventDefault = true
-          } = optionsRef.current;
+          const { stopPropagation = true, preventDefault = true } =
+            optionsRef.current;
 
           if (preventDefault) e.preventDefault();
           if (stopPropagation) e.stopPropagation();
@@ -281,18 +279,18 @@ export function usePointerDrag<T>(
             y: e.clientY,
             startedAt: Date.now(),
             dragging: false,
-            initialEvent: e.nativeEvent
+            initialEvent: e.nativeEvent,
           };
-        }
+        },
       };
     },
-    [setDragState, setIsStarted]
+    [setDragState, setIsStarted],
   );
 
   return {
     startDragging,
     dragState,
     isDragging,
-    dragProps
+    dragProps,
   } as IPointerDragReturnWithState<T> | IPointerDragReturnWithoutState;
 }
