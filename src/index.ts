@@ -1,19 +1,30 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 /**
  * Event object to be applied on the target element.
  * <div {...events} />
  */
 export interface IPointerDragEvents {
-  onMouseDown: (e: React.MouseEvent) => void;
-  onTouchStart: (e: React.TouchEvent) => void;
+  onPointerDown(e: React.PointerEvent): void;
 }
 
-export interface IPointerDragState<T> {
+export interface IPointerDragReturnBase {
   /**
-   * Function to be called when dragging begins.
+   * True if constraints were met and the dragging is happening.
    */
-  startDragging: (state: T) => void;
+  isDragging: boolean;
+}
+
+export interface IPointerDragReturnWithState<T> extends IPointerDragReturnBase {
+  /**
+   * Function to be manually called when dragging begins.
+   */
+  startDragging(state: T): void;
+
+  /**
+   * Returns props to apply on the target React node.
+   */
+  dragProps(state: T): IPointerDragEvents;
 
   /**
    * Current drag state. Undefined if not moving.
@@ -21,7 +32,71 @@ export interface IPointerDragState<T> {
   dragState?: T;
 }
 
-export interface IPointerDragOptions {
+export interface IPointerDragReturnWithoutState extends IPointerDragReturnBase {
+  /**
+   * Function to be manually called when dragging begins.
+   */
+  startDragging(): void;
+
+  /**
+   * Returns props to apply on the target React node.
+   */
+  dragProps(): IPointerDragEvents;
+}
+
+export interface IPointerDragData<T> {
+  /**
+   * Current pointer horizontal position (clientX).
+   */
+  x: number;
+
+  /**
+   * Current pointer vertical position (clientY).
+   */
+  y: number;
+
+  /**
+   * Difference between current horizontal position and start horizontal position. (clientX - startX)
+   */
+  deltaX: number;
+
+  /**
+   * Difference between current vertical position and start horizontal position. (clientY - startY)
+   */
+  deltaY: number;
+
+  /**
+   * Starting pointer horizontal position (clientX).
+   */
+  startX: number;
+
+  /**
+   * Starting pointer vertical position (clientY).
+   */
+  startY: number;
+
+  /**
+   * Distance between starting position and current position.
+   */
+  distance: number;
+
+  /**
+   * Timestamp (UNIX; milliseconds) when pointer down was called.
+   */
+  startedAt: number;
+
+  /**
+   * Current dragState.
+   */
+  state: T;
+
+  /**
+   * Update dragState.
+   */
+  setState: React.Dispatch<React.SetStateAction<T | undefined>>;
+}
+
+export interface IPointerDragOptions<T> {
   /**
    * If set to true, stopPropagation will be called.
    * Default: true.
@@ -33,125 +108,186 @@ export interface IPointerDragOptions {
    * Default: true.
    */
   preventDefault?: boolean;
+
+  /**
+   * Called if no dragging occurs (either due to constraints or the user not moving the pointer).
+   */
+  onClick?(state: IPointerDragData<T>): void;
+
+  /**
+   * Called when dragging begins (constraints were met or user moved the pointer).
+   */
+  onStart?(state: IPointerDragData<T>): void;
+
+  /**
+   * Called when dragging continues.
+   */
+  onMove?(state: IPointerDragData<T>): void;
+
+  /**
+   * Called when dragging ends.
+   */
+  onEnd?(state: IPointerDragData<T>): void;
+
+  /**
+   * Drag predicate function that is called during pointer move and returns true to begin dragging.
+   */
+  dragPredicate?(state: IPointerDragData<T>): boolean;
 }
 
-/**
- * Common mouse/touch hold and move actions.
- * @param updatePosition Function to be called with clientX and clientY when mouse/touch is down and dragged.
- * @returns IPointerDragState
- */
 export function usePointerDrag<T>(
-  updatePosition: (x: number, y: number, dragState: T) => void,
-  options: IPointerDragOptions = {}
-): IPointerDragState<T> {
+  options: IPointerDragOptions<T>
+): unknown extends T
+  ? IPointerDragReturnWithoutState
+  : IPointerDragReturnWithState<T>;
+export function usePointerDrag<T>(
+  options: IPointerDragOptions<T>
+): IPointerDragReturnWithoutState | IPointerDragReturnWithState<T> {
   const [dragState, setDragState] = useState<T | undefined>(undefined);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isStarted, setIsStarted] = useState(false);
 
-  const { stopPropagation = true, preventDefault = true } = options;
+  const infoRef = useRef<{
+    x: number;
+    y: number;
+    startedAt: number;
+    dragging: boolean;
+  }>({ x: 0, y: 0, startedAt: 0, dragging: false });
+  const optionsRef = useRef(options);
+  const dragStateRef = useRef(dragState);
 
   useEffect(() => {
-    if (typeof dragState === 'undefined') {
+    optionsRef.current = options;
+  }, [options]);
+
+  useEffect(() => {
+    dragStateRef.current = dragState;
+  }, [dragState]);
+
+  useEffect(() => {
+    if (!isStarted) {
       return;
     }
 
-    const handleMouseMove = (e: MouseEvent) => {
-      if (preventDefault) e.preventDefault();
-      if (stopPropagation) e.stopPropagation();
+    const {
+      stopPropagation = true,
+      preventDefault = true,
+      onClick,
+      onStart,
+      onMove,
+      onEnd,
+      dragPredicate
+    } = optionsRef.current;
 
-      updatePosition(e.clientX, e.clientY, dragState);
+    const getData = (
+      e: PointerEvent | React.PointerEvent
+    ): IPointerDragData<T> => {
+      return {
+        x: e.clientX,
+        y: e.clientY,
+        state: dragStateRef.current!,
+        setState: setDragState,
+        deltaX: e.clientX - infoRef.current.x,
+        deltaY: e.clientY - infoRef.current.y,
+        startX: infoRef.current.x,
+        startY: infoRef.current.y,
+        startedAt: infoRef.current.startedAt,
+        distance: Math.sqrt(
+          Math.pow(e.clientX - infoRef.current.x, 2) +
+            Math.pow(e.clientY - infoRef.current.y, 2)
+        )
+      };
     };
 
-    const handleTouchMove = (e: TouchEvent) => {
+    const handleEvent = (e: PointerEvent) => {
       if (preventDefault) e.preventDefault();
       if (stopPropagation) e.stopPropagation();
+    };
 
-      const touch = e.touches[0];
-      if (!touch) {
-        return;
+    const handleMove = (e: PointerEvent) => {
+      const data = getData(e);
+
+      if (!infoRef.current.dragging) {
+        if (!dragPredicate || dragPredicate(data)) {
+          handleEvent(e);
+          infoRef.current.dragging = true;
+          onStart?.(data);
+        }
+      } else {
+        handleEvent(e);
+        onMove?.(data);
+      }
+    };
+
+    const handleUp = (e: PointerEvent) => {
+      const data = getData(e);
+      if (infoRef.current.dragging) {
+        handleEvent(e);
+        onEnd?.(data);
+      } else {
+        onClick?.(data);
       }
 
-      updatePosition(touch.clientX, touch.clientY, dragState);
-    };
-
-    const handleUp = () => {
+      infoRef.current.dragging = false;
       setDragState(undefined);
+      setIsDragging(false);
+      setIsStarted(false);
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleUp);
-
-    document.addEventListener('touchmove', handleTouchMove);
-    document.addEventListener('touchend', handleUp);
-    document.addEventListener('touchcancel', handleUp);
+    document.addEventListener('pointermove', handleMove);
+    document.addEventListener('pointerup', handleUp);
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleUp);
-
-      document.removeEventListener('touchmove', handleTouchMove);
-      document.removeEventListener('touchend', handleUp);
-      document.removeEventListener('touchcancel', handleUp);
+      document.removeEventListener('pointermove', handleMove);
+      document.removeEventListener('pointerup', handleUp);
     };
-  });
+  }, [isStarted]);
 
-  const startDragging = useCallback((state: T) => setDragState(state), [
-    setDragState
-  ]);
+  const startDragging = useCallback(
+    (state?: T) => {
+      setDragState(state);
+      setIsStarted(true);
+      setIsDragging(true);
+      infoRef.current.dragging = true;
+    },
+    [setDragState, setIsStarted, setIsDragging]
+  );
+
+  const dragProps = useCallback(
+    (state?: T) => {
+      return {
+        onPointerDown: (e: React.PointerEvent) => {
+          if (e.pointerType === 'mouse' && e.button !== 0) {
+            // Ignore right click.
+            return;
+          }
+
+          const {
+            stopPropagation = true,
+            preventDefault = true
+          } = optionsRef.current;
+
+          if (preventDefault) e.preventDefault();
+          if (stopPropagation) e.stopPropagation();
+
+          setDragState(state);
+          setIsStarted(true);
+          infoRef.current = {
+            x: e.clientX,
+            y: e.clientY,
+            startedAt: Date.now(),
+            dragging: false
+          };
+        }
+      };
+    },
+    [setDragState, setIsStarted]
+  );
 
   return {
     startDragging,
-    dragState
-  };
-}
-
-export interface IPointerDragSimpleState {
-  /**
-   * Event object to be applied on the target element.
-   * <div {...events} />
-   */
-  events: IPointerDragEvents;
-
-  /**
-   * Whether the element is currently being dragged.
-   */
-  moving: boolean;
-}
-
-/**
- * Common mouse/touch hold and move actions.
- * @param updatePosition Function to be called with clientX and clientY when mouse/touch is down and dragged.
- * @returns IPointerDragState
- */
-export function usePointerDragSimple(
-  updatePosition: (x: number, y: number) => void,
-  options: IPointerDragOptions = {}
-): IPointerDragSimpleState {
-  const { startDragging, dragState } = usePointerDrag<boolean>(
-    updatePosition,
-    options
-  );
-
-  const { stopPropagation = true, preventDefault = true } = options;
-
-  const events = useMemo(
-    () => ({
-      onMouseDown: (e: React.MouseEvent) => {
-        if (preventDefault) e.preventDefault();
-        if (stopPropagation) e.stopPropagation();
-
-        startDragging(true);
-      },
-      onTouchStart: (e: React.TouchEvent) => {
-        if (preventDefault) e.preventDefault();
-        if (stopPropagation) e.stopPropagation();
-
-        startDragging(true);
-      }
-    }),
-    [startDragging, preventDefault, stopPropagation]
-  );
-
-  return {
-    events,
-    moving: dragState || false
-  };
+    dragState,
+    isDragging,
+    dragProps
+  } as IPointerDragReturnWithState<T> | IPointerDragReturnWithoutState;
 }

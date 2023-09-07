@@ -27,12 +27,6 @@
       "pre-commit": "tsdx lint"
     }
   },
-  "prettier": {
-    "tabWidth": 2,
-    "singleQuote": true,
-    "semi": true,
-    "arrowParens": "avoid"
-  },
   "name": "react-use-pointer-drag",
   "author": "Mat Sz <contact@matsz.dev>",
   "keywords": [
