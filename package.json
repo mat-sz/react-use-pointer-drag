@@ -1,31 +1,39 @@
 {
   "version": "0.0.2",
   "license": "BSD-3-Clause-Clear",
-  "main": "dist/index.js",
-  "typings": "dist/index.d.ts",
   "files": [
-    "dist",
+    "lib",
     "src"
   ],
-  "engines": {
-    "node": ">=10"
+  "main": "./lib/index.js",
+  "module": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    "import": "./lib/index.js",
+    "types": "./lib/index.d.ts"
   },
+  "type": "module",
   "scripts": {
-    "start": "tsdx watch",
-    "build": "tsdx build",
-    "test": "tsdx test --passWithNoTests",
-    "lint": "tsdx lint src",
-    "prepare": "tsdx build",
-    "size": "size-limit",
-    "analyze": "size-limit --why"
+    "prepare": "npm run build",
+    "test": "jest",
+    "build": "tsc",
+    "lint": "eslint src"
   },
   "peerDependencies": {
     "react": ">=16.3.0"
   },
   "husky": {
     "hooks": {
-      "pre-commit": "tsdx lint"
+      "pre-commit": "lint-staged"
     }
+  },
+  "lint-staged": {
+    "src/**/*.{js,jsx,ts,tsx,json,css,scss,md}": [
+      "prettier --write"
+    ],
+    "__tests__/**/*.{js,jsx,ts,tsx,json,css,scss,md}": [
+      "prettier --write"
+    ]
   },
   "name": "react-use-pointer-drag",
   "author": "Mat Sz <contact@matsz.dev>",
@@ -42,26 +50,13 @@
     "touch",
     "drag-and-drop"
   ],
-  "module": "dist/react-use-pointer-drag.esm.js",
-  "size-limit": [
-    {
-      "path": "dist/react-use-pointer-drag.cjs.production.min.js",
-      "limit": "10 KB"
-    },
-    {
-      "path": "dist/react-use-pointer-drag.esm.js",
-      "limit": "10 KB"
-    }
-  ],
   "devDependencies": {
-    "@size-limit/preset-small-lib": "^4.12.0",
     "@types/react": ">=16.3.0",
-    "husky": "^6.0.0",
+    "husky": "^8.0.0",
+    "lint-staged": "^14.0.1",
+    "prettier": "^3.0.3",
     "react": ">=16.3.0",
-    "size-limit": "^4.12.0",
-    "tsdx": "^0.14.1",
-    "tslib": "^2.3.0",
-    "typescript": "^4.3.4"
+    "typescript": "^5.2.2"
   },
   "dependencies": {}
 }
