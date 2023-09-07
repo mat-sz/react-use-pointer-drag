@@ -3,7 +3,7 @@ react-use-pointer-drag
 </h1>
 
 <p align="center">
-<img alt="workflow" src="https://img.shields.io/github/workflow/status/mat-sz/react-use-pointer-drag/CI">
+<img alt="workflow" src="https://img.shields.io/github/actions/workflow/status/mat-sz/react-use-pointer-drag/node.js.yml?branch=main">
 <a href="https://npmjs.com/package/react-use-pointer-drag">
 <img alt="npm" src="https://img.shields.io/npm/v/react-use-pointer-drag">
 <img alt="npm" src="https://img.shields.io/npm/dw/react-use-pointer-drag">
@@ -17,41 +17,27 @@ A simple hook for handling drag and move actions in React apps.
 ### Simple:
 
 ```tsx
-const { events } = usePointerDragSimple((x, y) => {
-  // Do something.
+// In component:
+
+const { dragProps } = usePointerDrag({
+  onMove: ({ x, y }) => {
+    // Do something.
+  },
 });
 
-return <div {...events} />;
+return <div {...dragProps()} />;
 ```
 
 ### With state:
 
 ```tsx
-const { startDragging } = usePointerDrag((x, y, dragState) => {
-  // Do something.
+// In component:
+
+const { dragProps } = usePointerDrag<{ clip: Clip }>({
+  onMove: ({ x, y, state: { clip } }) => {
+    // Do something.
+  },
 });
 
-return (
-  <div
-    onMouseDown={(e: React.MouseEvent) => {
-      e.preventDefault();
-      startDragging({
-        initX: e.clientX,
-        clip
-      });
-    }}
-    onTouchStart={(e: React.TouchEvent) => {
-      e.preventDefault();
-      const touch = e.touches[0];
-      if (!touch) {
-        return;
-      }
-
-      startDragging({
-        initX: touch.clientX,
-        clip
-      });
-    }}
-  />
-);
+return <div {...dragProps({ clip })} />;
 ```
