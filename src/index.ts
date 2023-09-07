@@ -94,6 +94,11 @@ export interface IPointerDragData<T> {
    * Update dragState.
    */
   setState: React.Dispatch<React.SetStateAction<T | undefined>>;
+
+  /**
+   * PointerEvent object from pointer down.
+   */
+  initialEvent?: PointerEvent;
 }
 
 export interface IPointerDragOptions<T> {
@@ -152,6 +157,7 @@ export function usePointerDrag<T>(
     y: number;
     startedAt: number;
     dragging: boolean;
+    initialEvent?: PointerEvent;
   }>({ x: 0, y: 0, startedAt: 0, dragging: false });
   const optionsRef = useRef(options);
   const dragStateRef = useRef(dragState);
@@ -182,20 +188,23 @@ export function usePointerDrag<T>(
     const getData = (
       e: PointerEvent | React.PointerEvent
     ): IPointerDragData<T> => {
+      const { x: startX, y: startY, startedAt, initialEvent } = infoRef.current;
+
+      const deltaX = e.clientX - startX;
+      const deltaY = e.clientY - startY;
+
       return {
         x: e.clientX,
         y: e.clientY,
         state: dragStateRef.current!,
         setState: setDragState,
-        deltaX: e.clientX - infoRef.current.x,
-        deltaY: e.clientY - infoRef.current.y,
-        startX: infoRef.current.x,
-        startY: infoRef.current.y,
-        startedAt: infoRef.current.startedAt,
-        distance: Math.sqrt(
-          Math.pow(e.clientX - infoRef.current.x, 2) +
-            Math.pow(e.clientY - infoRef.current.y, 2)
-        )
+        deltaX,
+        deltaY,
+        startX,
+        startY,
+        startedAt,
+        initialEvent,
+        distance: Math.sqrt(Math.pow(deltaX, 2) + Math.pow(deltaY, 2))
       };
     };
 
@@ -257,11 +266,6 @@ export function usePointerDrag<T>(
     (state?: T) => {
       return {
         onPointerDown: (e: React.PointerEvent) => {
-          if (e.pointerType === 'mouse' && e.button !== 0) {
-            // Ignore right click.
-            return;
-          }
-
           const {
             stopPropagation = true,
             preventDefault = true
@@ -276,7 +280,8 @@ export function usePointerDrag<T>(
             x: e.clientX,
             y: e.clientY,
             startedAt: Date.now(),
-            dragging: false
+            dragging: false,
+            initialEvent: e.nativeEvent
           };
         }
       };
