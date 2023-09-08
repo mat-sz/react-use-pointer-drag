@@ -99,6 +99,11 @@ export interface IPointerDragData<T> {
    * PointerEvent object from pointer down.
    */
   initialEvent?: PointerEvent;
+
+  /**
+   * PointerEvent object from current event.
+   */
+  event?: PointerEvent;
 }
 
 export interface IPointerDragOptions<T> {
@@ -185,9 +190,7 @@ export function usePointerDrag<T>(
       dragPredicate,
     } = optionsRef.current;
 
-    const getData = (
-      e: PointerEvent | React.PointerEvent,
-    ): IPointerDragData<T> => {
+    const getData = (e: PointerEvent): IPointerDragData<T> => {
       const { x: startX, y: startY, startedAt, initialEvent } = infoRef.current;
 
       const deltaX = e.clientX - startX;
@@ -205,6 +208,7 @@ export function usePointerDrag<T>(
         startedAt,
         initialEvent,
         distance: Math.sqrt(Math.pow(deltaX, 2) + Math.pow(deltaY, 2)),
+        event: e,
       };
     };
 
@@ -266,12 +270,6 @@ export function usePointerDrag<T>(
     (state?: T) => {
       return {
         onPointerDown: (e: React.PointerEvent) => {
-          const { stopPropagation = true, preventDefault = true } =
-            optionsRef.current;
-
-          if (preventDefault) e.preventDefault();
-          if (stopPropagation) e.stopPropagation();
-
           setDragState(state);
           setIsStarted(true);
           infoRef.current = {
