@@ -81,7 +81,7 @@ export interface IPointerDragData<T> {
   distance: number;
 
   /**
-   * Timestamp (UNIX; milliseconds) when pointer down was called.
+   * Timestamp (UNIX; milliseconds) when pointerDown occured.
    */
   startedAt: number;
 
@@ -96,7 +96,7 @@ export interface IPointerDragData<T> {
   setState: React.Dispatch<React.SetStateAction<T | undefined>>;
 
   /**
-   * PointerEvent object from pointer down.
+   * PointerEvent object from pointerDown.
    */
   initialEvent?: PointerEvent;
 
@@ -109,15 +109,36 @@ export interface IPointerDragData<T> {
 export interface IPointerDragOptions<T> {
   /**
    * If set to true, stopPropagation will be called.
+   * Does not apply to pointerDown.
    * Default: true.
    */
   stopPropagation?: boolean;
 
   /**
    * If set to true, preventDefault will be called.
+   * Does not apply to pointerDown.
    * Default: true.
    */
   preventDefault?: boolean;
+
+  /**
+   * If set to true, stopPropagation will be called.
+   * Applies only to pointerDown.
+   * Default: false.
+   */
+  pointerDownStopPropagation?: boolean;
+
+  /**
+   * If set to true, preventDefault will be called.
+   * Applies only to pointerDown.
+   * Default: false.
+   */
+  pointerDownPreventDefault?: boolean;
+
+  /**
+   * Called on pointerDown.
+   */
+  onBeforeStart?(state: IPointerDragData<T>): void;
 
   /**
    * Called if no dragging occurs (either due to constraints or the user not moving the pointer).
@@ -140,7 +161,7 @@ export interface IPointerDragOptions<T> {
   onEnd?(state: IPointerDragData<T>): void;
 
   /**
-   * Drag predicate function that is called during pointer move and returns true to begin dragging.
+   * Drag predicate function that is called during pointerMove and returns true to begin dragging.
    */
   dragPredicate?(state: IPointerDragData<T>): boolean;
 }
@@ -272,13 +293,37 @@ export function usePointerDrag<T>(
         onPointerDown: (e: React.PointerEvent) => {
           setDragState(state);
           setIsStarted(true);
+          const now = Date.now();
           infoRef.current = {
             x: e.clientX,
             y: e.clientY,
-            startedAt: Date.now(),
+            startedAt: now,
             dragging: false,
             initialEvent: e.nativeEvent,
           };
+
+          if (optionsRef.current.pointerDownPreventDefault) {
+            e.preventDefault();
+          }
+
+          if (optionsRef.current.pointerDownStopPropagation) {
+            e.stopPropagation();
+          }
+
+          optionsRef.current.onBeforeStart?.({
+            x: e.clientX,
+            y: e.clientY,
+            state: state!,
+            setState: setDragState,
+            deltaX: 0,
+            deltaY: 0,
+            startX: e.clientX,
+            startY: e.clientY,
+            startedAt: now,
+            initialEvent: e.nativeEvent,
+            distance: 0,
+            event: e.nativeEvent,
+          });
         },
       };
     },
